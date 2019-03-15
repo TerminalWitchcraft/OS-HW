@@ -1,10 +1,20 @@
+/**
+ * File              : shell.c
+ * Author            : Hitesh Paul <hp1293@nyu.edu>
+ * Date              : 15.03.2019
+ * Last Modified Date: 15.03.2019
+ * Last Modified By  : Hitesh Paul <hp1293@nyu.edu>
+ */
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <string.h>
+#include <errno.h>
+#include <string.h>
 #include <assert.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <sys/stat.h>
 
 // Simplifed xv6 shell.
@@ -58,10 +68,20 @@ runcmd(struct cmd *cmd)
 
   case ' ':
     ecmd = (struct execcmd*)cmd;
-    if(ecmd->argv[0] == 0)
+    if(ecmd->argv[0] == 0) {
       exit(0);
-    fprintf(stderr, "exec not implemented\n");
-    // Your code here ...
+    }
+    int ret_code = execvp(ecmd->argv[0], ecmd->argv);
+    (ret_code < 0) ? 
+        ((ecmd->argv[0][0] != '/' && ecmd->argv[0][0] != '.' && errno == 2) ?
+            fprintf(stderr, "shell: %s: command not found\n", ecmd->argv[0]) 
+            : 
+            fprintf(stderr, "shell: %s: %s\n", ecmd->argv[0], strerror(errno)) 
+            )
+        :0;
+    /* if(ret_code < 0){ */
+    /*     fprintf(stderr, "shell: %s: %s\n", ecmd->argv[0], strerror(errno)); */
+    /* } */
     break;
 
   case '>':
@@ -85,8 +105,11 @@ int
 getcmd(char *buf, int nbuf)
 {
   
-  if (isatty(fileno(stdin)))
-    fprintf(stdout, "cs6233> ");
+  if (isatty(fileno(stdin))) {
+    char * name; 
+    name = getlogin();
+    fprintf(stdout, "%s@cs6233> ", name);
+  }
   memset(buf, 0, nbuf);
   fgets(buf, nbuf, stdin);
   if(buf[0] == 0) // EOF
@@ -330,3 +353,6 @@ parseexec(char **ps, char *es)
   cmd->argv[argc] = 0;
   return ret;
 }
+
+/* References */
+/* https://stackoverflow.com/questions/5769734/what-are-the-different-versions-of-exec-used-for-in-c-and-c */
