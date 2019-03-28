@@ -54,6 +54,7 @@ void
 runcmd(struct cmd *cmd)
 {
   int p[2], r;
+  char buff;
   struct execcmd *ecmd;
   struct pipecmd *pcmd;
   struct redircmd *rcmd;
@@ -85,17 +86,39 @@ runcmd(struct cmd *cmd)
     break;
 
   case '>':
+    rcmd = (struct redircmd*)cmd;
+    int out_file = open(rcmd->file, rcmd->mode, 00666);
+    dup2(out_file, rcmd->fd);
+    runcmd(rcmd->cmd);
+    break;
   case '<':
     rcmd = (struct redircmd*)cmd;
-    fprintf(stderr, "redir not implemented\n");
-    // Your code here ...
+    int in_file = open(rcmd->file, rcmd->mode, 00666);
+    dup2(in_file, rcmd->fd);
     runcmd(rcmd->cmd);
     break;
 
   case '|':
     pcmd = (struct pipecmd*)cmd;
-    fprintf(stderr, "pipe not implemented\n");
-    // Your code here ...
+    pipe(p);
+    pid_t cpid = fork1();
+    fprintf(stdout, "After fork %d\n", cpid);
+    if (cpid == 0) {
+        fprintf(stdout, "After fork from child %d\n", cpid);
+	sleep(10);
+        fprintf(stdout, "I slept for 10 seconds\n");
+    } else {
+        fprintf(stdout, "After fork from parent %d\n", cpid);
+	waitpid(cpid, NULL, WUNTRACED | WCONTINUED);
+    }
+    
+
+    /* dup2(p[1], 1); */
+    /* runcmd(pcmd->left); */
+    /* fprintf(stdout, "After dup\n"); */
+    /* dup2(p[0], 0); */
+    /* runcmd(pcmd->right); */
+    /* close(p[0]); */
     break;
   }    
   exit(0);
