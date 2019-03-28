@@ -2,7 +2,7 @@
  * File              : shell.c
  * Author            : Hitesh Paul <hp1293@nyu.edu>
  * Date              : 15.03.2019
- * Last Modified Date: 15.03.2019
+ * Last Modified Date: 28.03.2019
  * Last Modified By  : Hitesh Paul <hp1293@nyu.edu>
  */
 #include <stdlib.h>
@@ -53,8 +53,7 @@ struct cmd *parsecmd(char*);
 void
 runcmd(struct cmd *cmd)
 {
-  int p[2], r;
-  char buff;
+  int p[2];
   struct execcmd *ecmd;
   struct pipecmd *pcmd;
   struct redircmd *rcmd;
@@ -80,45 +79,58 @@ runcmd(struct cmd *cmd)
             fprintf(stderr, "shell: %s: %s\n", ecmd->argv[0], strerror(errno)) 
             )
         :0;
-    /* if(ret_code < 0){ */
-    /*     fprintf(stderr, "shell: %s: %s\n", ecmd->argv[0], strerror(errno)); */
-    /* } */
     break;
 
   case '>':
     rcmd = (struct redircmd*)cmd;
-    int out_file = open(rcmd->file, rcmd->mode, 00666);
+    int out_file = open(rcmd->file, rcmd->mode, 00644);
+    if (out_file == -1){
+	fprintf(stderr, "shell: failed to write to file %s: %s\n", rcmd->file, strerror(errno));
+	break;
+    }
     dup2(out_file, rcmd->fd);
     runcmd(rcmd->cmd);
     break;
   case '<':
     rcmd = (struct redircmd*)cmd;
-    int in_file = open(rcmd->file, rcmd->mode, 00666);
+    int in_file = open(rcmd->file, rcmd->mode, 00644);
+    if (in_file == -1){
+	fprintf(stderr, "shell: failed to read from file %s: %s\n", rcmd->file, strerror(errno));
+	break;
+    }
     dup2(in_file, rcmd->fd);
     runcmd(rcmd->cmd);
     break;
 
   case '|':
     pcmd = (struct pipecmd*)cmd;
-    pipe(p);
-    pid_t cpid = fork1();
-    fprintf(stdout, "After fork %d\n", cpid);
-    if (cpid == 0) {
-        fprintf(stdout, "After fork from child %d\n", cpid);
-	sleep(10);
-        fprintf(stdout, "I slept for 10 seconds\n");
-    } else {
-        fprintf(stdout, "After fork from parent %d\n", cpid);
-	waitpid(cpid, NULL, WUNTRACED | WCONTINUED);
-    }
-    
+    int pr = pipe(p);
+    if (pr == -1){
+	fprintf(stderr, "shell: Pipe failed: %s\n", strerror(errno));
+	break;
+    };
 
-    /* dup2(p[1], 1); */
-    /* runcmd(pcmd->left); */
-    /* fprintf(stdout, "After dup\n"); */
-    /* dup2(p[0], 0); */
-    /* runcmd(pcmd->right); */
-    /* close(p[0]); */
+
+    pid_t cpid = fork();
+    if (cpid < 0) {
+	fprintf(stderr, "shell: Fork failed: %s\n", strerror(errno));
+    }
+    if (cpid == 0) {
+	dup2(p[1], 1);
+	close(p[0]);
+	runcmd(pcmd->left);
+    } else {
+        pid_t cpid2 = fork();
+        if (cpid2 < 0) {
+            fprintf(stderr, "shell: Fork failed: %s\n", strerror(errno));
+        }
+        if (cpid2 == 0) {
+            dup2(p[0], 0);
+            close(p[1]);
+            runcmd(pcmd->right);
+        }
+    }
+    waitpid(-1, NULL, 0);
     break;
   }    
   exit(0);
