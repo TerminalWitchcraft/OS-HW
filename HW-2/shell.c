@@ -60,7 +60,7 @@ void runcmd(struct cmd *cmd) {
 
   switch (cmd->type) {
   default:
-    fprintf(stderr, "unknown runcmd\n");
+    fprintf(stderr, "unknown command\n");
     exit(-1);
 
   case ' ':
@@ -82,7 +82,7 @@ void runcmd(struct cmd *cmd) {
     rcmd = (struct redircmd *)cmd;
     int out_file = open(rcmd->file, rcmd->mode, 00644);
     if (out_file == -1) {
-      fprintf(stderr, "shell: failed to write to file %s: %s\n", rcmd->file,
+      fprintf(stderr, "shell: %s: %s\n", rcmd->file,
               strerror(errno));
       break;
     }
@@ -93,7 +93,7 @@ void runcmd(struct cmd *cmd) {
     rcmd = (struct redircmd *)cmd;
     int in_file = open(rcmd->file, rcmd->mode, 00644);
     if (in_file == -1) {
-      fprintf(stderr, "shell: failed to read from file %s: %s\n", rcmd->file,
+      fprintf(stderr, "shell: %s: %s\n", rcmd->file,
               strerror(errno));
       break;
     }
@@ -105,13 +105,13 @@ void runcmd(struct cmd *cmd) {
     pcmd = (struct pipecmd *)cmd;
     int pr = pipe(p);
     if (pr == -1) {
-      fprintf(stderr, "shell: Pipe failed: %s\n", strerror(errno));
+      fprintf(stderr, "shell: pipe failed: %s\n", strerror(errno));
       break;
     };
 
     pid_t cpid = fork();
     if (cpid < 0) {
-      fprintf(stderr, "shell: Fork failed: %s\n", strerror(errno));
+      fprintf(stderr, "shell: fork failed: %s\n", strerror(errno));
     }
     if (cpid == 0) {
       dup2(p[1], 1);
@@ -120,7 +120,7 @@ void runcmd(struct cmd *cmd) {
     } else {
       pid_t cpid2 = fork();
       if (cpid2 < 0) {
-        fprintf(stderr, "shell: Fork failed: %s\n", strerror(errno));
+        fprintf(stderr, "shell: fork failed: %s\n", strerror(errno));
       }
       if (cpid2 == 0) {
         dup2(p[0], 0);
